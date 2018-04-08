@@ -22,6 +22,7 @@ my_mcmcMH <- function(target, init.theta, proposal.sd, n.iterations) {
     theta.proposed <- rnorm(n = length(theta.current),
                             mean = theta.current,
                             sd = proposal.sd)
+    print(paste("theta.proposed: ", theta.proposed))
     
     # Note that 'rnorm' returns an unnamed vector, but the functions of
     # 'fitmodel' need a named parameter vector. We therefore set
@@ -32,6 +33,7 @@ my_mcmcMH <- function(target, init.theta, proposal.sd, n.iterations) {
     # evaluate the function target at the proposed theta and
     # assign to a variable called target.theta.proposed
     target.theta.proposed <- target(theta.proposed)
+    print(paste("target.theta.proposed: ", target.theta.proposed))
     
     # compute Metropolis-Hastings ratio (acceptance probability). Since
     # the multivariate Gaussian is symmetric, we don't need to consider
@@ -46,6 +48,10 @@ my_mcmcMH <- function(target, init.theta, proposal.sd, n.iterations) {
     # Metropolis-Hastings ratio (acceptance probability) (using
     # "exp" because we calculated the logarithm of the
     # Metropolis-Hastings ratio before)
+    
+    print(exp(log.acceptance))
+    print(paste("log.accep: : ",log.acceptance))
+    
     if (r < exp(log.acceptance)) {
       
       # if accepted:
@@ -67,7 +73,7 @@ my_mcmcMH <- function(target, init.theta, proposal.sd, n.iterations) {
     # print current state of chain and acceptance rate
     # use paste() to deal with the case where `theta` is a vector
     message("iteration: ", i.iteration, ", chain:", paste(theta.current, collapse=" "),
-            ", acceptance rate:", accepted / i.iteration)
+            ", acceptance rate:", accepted / i.iteration, ", error:", exp(log.acceptance))
     
   }
   

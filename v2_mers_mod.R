@@ -18,9 +18,10 @@ epi = full_join(times, epi, by = "times")
 
 epi[is.na(epi)] <- 0
 
+rm(mers_times, mers_times2, times)
 
 # Coding Model -----------------------------
-SIR$name
+SIR$name <- c("SEIC model with constant population size")
 SIR$state.names <- c("S", "E", "I", "C", "Exp", "Inc", "Con")
 SIR$theta.names <- c("beta", "L", "D")
 
@@ -46,6 +47,7 @@ SIR$simulate <- function (theta, init.state, times)
     S1 = max(S,0) #prevent from going below zero
     
     dE <- beta * S1 * I/N - (E/L)
+    
     dI <- (E/L) - (I/D)
     dC <- I/D
     
@@ -94,45 +96,26 @@ SIR$dprior <- function(theta, log = FALSE) {
 # Log Likelihood of data  -----------------------------
 
 #* Exposed ----------------------
-SIR$dPointObs_E <- function(data.point, model.point, theta, log = FALSE){
-  
-  ## the prevalence is observed through a neg binomial process
-  dnbinom(x = data.point[["exp"]], size = 10, #dispersion param
-          prob = 10/(10+model.point[["Exp"]]),
-          log = log)
-  
-}
 
 
-# calculates total log likelihood of a set of parameters and initial state.
 dTrajObs_E <- function (fitmodel, theta, init.state, data, log = TRUE) {
   times <- c(0, data$times)
   traj <- fitmodel$simulate(theta, init.state, times)
   dens <- 0
-  for (i in 1:nrow(data)) {
+  for (i in 5:nrow(data)) {
     data.point <- unlist(data[i, ])
     model.point <- unlist(traj[i, ])
-    dens <- dens + fitmodel$dPointObs_E(data.point = data.point, 
-                                        model.point = model.point, theta = theta, log = TRUE)
+    dens <- dens + 
+      dpois(x = data.point[["exp"]], #dispersion param
+            lambda = model.point[["Exp"]] + .0000000001,
+            log = log)
+    
   }
   return(dens)
   # return(ifelse(log, dens, exp(dens)))
 }
 
-
-
 #* Infection  ----------------------
-SIR$dPointObs_I <- function(data.point, model.point, theta, log = FALSE){
-  
-  ## the prevalence is observed through a neg binomial process
-  dnbinom(x = data.point[["onset"]], size = 10, #dispersion param
-          prob = 10/(10+model.point[["Inc"]]),
-          log = log)
-  
-}
-
-
-# calculates total log likelihood of a set of parameters and initial state.
 dTrajObs_I <- function (fitmodel, theta, init.state, data, log = TRUE) {
   times <- c(0, data$times)
   traj <- fitmodel$simulate(theta, init.state, times)
@@ -140,40 +123,32 @@ dTrajObs_I <- function (fitmodel, theta, init.state, data, log = TRUE) {
   for (i in 1:nrow(data)) {
     data.point <- unlist(data[i, ])
     model.point <- unlist(traj[i, ])
-    dens <- dens + fitmodel$dPointObs_I(data.point = data.point, 
-                                        model.point = model.point, theta = theta, log = TRUE)
+    dens <- dens + 
+      dpois(x = data.point[["onset"]], #dispersion param
+            lambda = model.point[["Inc"]] + .0000000001,
+            log = log)
   }
   return(dens)
   # return(ifelse(log, dens, exp(dens)))
 }
 
 
-
 #* Confirmed ----------------------
-SIR$dPointObs_C <- function(data.point, model.point, theta, log = FALSE){
-  
-  ## the prevalence is observed through a neg binomial process
-  dnbinom(x = data.point[["conf"]], size = 10, #dispersion param
-          prob = 10/(10+model.point[["Con"]]),
-          log = log)
-}
-
-
-# calculates total log likelihood of a set of parameters and initial state.
 dTrajObs_C <- function (fitmodel, theta, init.state, data, log = TRUE) {
   times <- c(0, data$times)
   traj <- fitmodel$simulate(theta, init.state, times)
   dens <- 0
-  for (i in 1:nrow(data)) {
+  for (i in 10:nrow(data)) {
     data.point <- unlist(data[i, ])
     model.point <- unlist(traj[i, ])
-    dens <- dens + fitmodel$dPointObs_C(data.point = data.point, 
-                                        model.point = model.point, theta = theta, log = TRUE)
+    dens <- dens + 
+      dpois(x = data.point[["conf"]], #dispersion param
+            lambda = model.point[["Con"]] + .0000000001,
+            log = log)
   }
   return(dens)
   # return(ifelse(log, dens, exp(dens)))
 }
-
 
 
 
@@ -205,16 +180,33 @@ logPosterior_trunc <- function(theta) {
 }
 
 
-mcmc.epi <- my_mcmcMH(target = logPosterior_trunc,
-                      init.theta = c(beta = 4, L =6, D = 6),
-                      proposal.sd = c(0.1, 0.1, .1),
-                      n.iterations = 100)
+#mcmc.epi <- my_mcmcMH(target = logPosterior_trunc,
+#                      init.theta = c(beta = .75, L =8.07, D = 6.83),
+#                      proposal.sd = c(0.5, 0.5, .5),
+#                      n.iterations = 5000)
 
+# uses truncated multivariate normal
+mcmc.epi <- mcmcMH(target = logPosterior_trunc, 
+                   init.theta = c(beta = .1, L =2, D = 2),
+                   proposal.sd = c(.01, .1, .1),
+                   n.iterations = 1000,
+                   limits = list(lower = c(beta = 0, L = 0, D = 0)))
 
 
 
 # Diagnostics  ----------------------
 
 trace <- mcmc.epi$trace
+mcmc.trace <- mcmc(trace)
+summary(mcmc.trace)
 
+acceptanceRate <- 1 - rejectionRate(mcmc.trace)
+effectiveSize(mcmc.trace)
+plot(mcmc.trace)
 
+mcmc.trace.burned <- burnAndThin(mcmc.trace, burn = 100, thin = 5)
+plot(mcmc.trace.burned)
+
+autocorr.plot(mcmc.trace.burned)
+
+plotESSBurn(mcmc.trace)
