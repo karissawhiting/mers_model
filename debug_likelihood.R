@@ -112,5 +112,151 @@ cbin
 
 
 
+##########################################
+#found example of poisson error 
 
+# this causes errors
+mcmcMH(target = logPosterior_trunc, 
+                       init.theta = c(beta = .1, L =2, D = 2),
+                        proposal.sd = c(.01, .1, .1),
+                        n.iterations = 1000,
+                        limits = list(lower = c(beta = 0, L = 0, D = 0)))
+
+
+
+theta<- c(beta = .1, L =2, D = 2)
+logPosterior_trunc(theta)
+
+my_dLogPosterior <- function(fitmodel, theta, init.state, data) {
+  
+  log.prior <- fitmodel$dprior(theta, log = TRUE)
+  print(log.prior)
+  # calculate the log-likelihood of `theta`
+  log.likelihood <- dTrajObs_E(fitmodel, theta, init.state, data, log = TRUE) +
+    dTrajObs_I(fitmodel, theta, init.state, data, log = TRUE) +
+    dTrajObs_C(fitmodel, theta, init.state, data, log = TRUE)
+  
+  print(log.likelihood)
+  
+  # calulate the log-posterior using the log-prior and log-likelihood
+  log.posterior <- log.prior + log.likelihood
+  
+  print(log.posterior)
+  return(log.posterior)
+  
+}
+
+
+my_dLogPosterior(SIR, theta, init.state, epi)
+
+
+
+##############
+
+
+
+dTrajObs_E <- function (fitmodel, theta, init.state, data, log = TRUE) {
+  times <- c(0, data$times)
+  traj <<- fitmodel$simulate(theta, init.state, times)
+  dens <- 0
+  for (i in 5:56) {
+    print(i)
+    data.point <- unlist(data[i, ])
+    print(data.point[["exp"]])
+    model.point <- unlist(traj[i+1, ])
+    print(model.point[["Exp"]])
+    dens <- dens + 
+      dpois(x = data.point[["exp"]], #dispersion param
+            lambda = (model.point[["Exp"]] + .0000000001),
+            log = log)
+    
+  }
+  print(dens)
+  # return(ifelse(log, dens, exp(dens)))
+}
+
+
+dens <- 0
+for (i in 5:56) {
+  print(i)
+  print(epi[["exp"]][[i]])
+  print(traj[["Exp"]][[i+1]] + .000001)
+  dens[i] <- dpois(x = epi[["exp"]][[i]],
+          lambda = (traj[["Exp"]][[i+1]] + .0000000001),
+          log = log)
+
+}
+
+for (i in 5:56) {
+  l <- (traj[["Exp"]][[i+1]] + .0001)
+  print(i)
+  print(epi[["exp"]][[i]])
+  print(l)
+den <- dpois(x = epi[["exp"]][[i]], #dispersion param
+      lambda = l,
+      log = log)
+print(den)
+}
+
+
+dpois(x = 0, #dispersion param
+      lambda = -7.589595e-08,
+      log = log)
+
+
+
+dens <- 0
+for (i in 5:56) {
+  dens <- dens + 
+    dpois(x = data.point[["exp"]], #dispersion param
+          lambda = (model.point[["Exp"]] + .0000000001),
+          log = log)
+  
+}
+
+
+
+
+
+dTrajObs_E(SIR, theta = c(beta = .1, L =2, D = 2), 
+           init.state = c(S = 51413925, E = 0, I = 1, C = 0), epi, log = TRUE)
+
+dpois(x = 1, #dispersion param
+      lambda = 0.04517858,
+      log = log)
+
+#* Infection  ----------------------
+dTrajObs_I <- function (fitmodel = SIR, theta, init.state = init.state, data = epi, log = TRUE) {
+  times <- c(0, data$times)
+  traj <- fitmodel$simulate(theta, init.state, times)
+  dens <- 0
+  for (i in 1:nrow(data)) {
+    data.point <- unlist(data[i, ])
+    model.point <- unlist(traj[i, ])
+    dens <- dens + 
+      dpois(x = data.point[["onset"]], #dispersion param
+            lambda = model.point[["Inc"]] + .0000000001,
+            log = log)
+  }
+  return(dens)
+  # return(ifelse(log, dens, exp(dens)))
+}
+
+
+#* Confirmed ----------------------
+dTrajObs_C <- function (fitmodel = SIR, theta, init.state = init.state, data = epi, log = TRUE) {
+  times <- c(0, data$times)
+  traj <- fitmodel$simulate(theta, init.state, times)
+  dens <- 0
+  for (i in 10:nrow(data)) {
+    data.point <- unlist(data[i, ])
+    model.point <- unlist(traj[i, ])
+    dens <- dens + 
+      dpois(x = data.point[["conf"]], #dispersion param
+            lambda = model.point[["Con"]] + .0000000001,
+            log = log)
+  }
+  return(dens)
+  # return(ifelse(log, dens, exp(dens)))
+}
 

@@ -3,7 +3,7 @@ library(ggplot2)
 
 # run shit
 
-theta<- c(beta = 0.327696,  L = 8.16870 , D = 6.967140) #8.07 #3.77
+theta<- c(beta = 0.75,  L = 8.16870 , D = 6.83) #8.07 #3.77
 init.state <- c(S = 51413925, E = 0, I = 1, C = 0)
 times <- 1:57
 traj <- SIR$simulate(theta, init.state, times)
@@ -11,12 +11,12 @@ traj <- SIR$simulate(theta, init.state, times)
 
 ggplot(data = traj, aes(x = time)) + 
   geom_line(aes(y = S), color = "blue") + 
-#  geom_line(aes(y = E), color = "purple") +
+  geom_line(aes(y = E), color = "purple") +
   geom_line(aes(y = I), color = "green") +
-#  geom_line(aes(y = C), color = "orange") +
-#  geom_line(aes(y = Exp), color = "green") +
+  geom_line(aes(y = C), color = "orange") +
+  geom_line(aes(y = Exp), color = "green") +
   geom_line(aes(y = Inc), color = "purple" ) +
-#  geom_line(aes(y = Con), color = "orange") +
+  geom_line(aes(y = Con), color = "orange") +
   labs(y = "") #
 
 

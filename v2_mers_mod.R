@@ -2,6 +2,7 @@ library(tidyverse)
 library('fitR')
 library(reshape2)
 library('coda')
+library(MHadaptive)
 
 # Data Clean -----------------------------
 
@@ -107,7 +108,7 @@ dTrajObs_E <- function (fitmodel, theta, init.state, data, log = TRUE) {
     model.point <- unlist(traj[i, ])
     dens <- dens + 
       dpois(x = data.point[["exp"]], #dispersion param
-            lambda = model.point[["Exp"]] + .0000000001,
+            lambda = model.point[["Exp"]] + .0001,
             log = log)
     
   }
@@ -125,7 +126,7 @@ dTrajObs_I <- function (fitmodel, theta, init.state, data, log = TRUE) {
     model.point <- unlist(traj[i, ])
     dens <- dens + 
       dpois(x = data.point[["onset"]], #dispersion param
-            lambda = model.point[["Inc"]] + .0000000001,
+            lambda = model.point[["Inc"]] + .0001,
             log = log)
   }
   return(dens)
@@ -143,7 +144,7 @@ dTrajObs_C <- function (fitmodel, theta, init.state, data, log = TRUE) {
     model.point <- unlist(traj[i, ])
     dens <- dens + 
       dpois(x = data.point[["conf"]], #dispersion param
-            lambda = model.point[["Con"]] + .0000000001,
+            lambda = model.point[["Con"]] + .0001,
             log = log)
   }
   return(dens)
@@ -186,12 +187,20 @@ logPosterior_trunc <- function(theta) {
 #                      n.iterations = 5000)
 
 # uses truncated multivariate normal
-mcmc.epi <- mcmcMH(target = logPosterior_trunc, 
-                   init.theta = c(beta = .1, L =2, D = 2),
-                   proposal.sd = c(.01, .1, .1),
-                   n.iterations = 1000,
-                   limits = list(lower = c(beta = 0, L = 0, D = 0)))
+#mcmc.epi <- mcmcMH(target = logPosterior_trunc, 
+#                   init.theta = c(beta = .4, L =5, D = 6),
+#                   proposal.sd = c(.01, .1, .1),
+#                   n.iterations = 3000,
+#                   limits = list(lower = c(beta = 0, L = 0, D = 0)))
 
+#this is best trace so far
+mcmc.epi <- mcmcMH(target = logPosterior_trunc,
+                   init.theta = c(beta = .4, L =5, D = 6),
+                   proposal.sd = c(.01, .3, .3),
+                   n.iterations = 1000,
+                   adapt.size.start = 100,
+                   adapt.size.cooling=0.999,
+                   limits = list(lower = c(beta = 0, L = 0, D = 0)))
 
 
 # Diagnostics  ----------------------
@@ -210,3 +219,51 @@ plot(mcmc.trace.burned)
 autocorr.plot(mcmc.trace.burned)
 
 plotESSBurn(mcmc.trace)
+
+# One Param at a time ----------------------
+# Beta
+
+logPosterior_trunc <- function(beta) {
+  
+  return(my_dLogPosterior(fitmodel = SIR,
+                          theta = c(beta = beta,  L = 8 , D = 6),
+                          init.state = c(S = 51413925, E = 0, I = 1, C = 0),
+                          data = epi))
+  
+}
+
+logPosterior_trunc(beta = .2)
+
+mcmc.epi <- mcmcMH(target = logPosterior_trunc,
+                   init.theta = .3,
+                   proposal.sd = .01,
+                   n.iterations = 1000,
+                   adapt.size.start = 100,
+                   adapt.size.cooling=0.999,
+                   limits = list(lower = c(beta = 0)))
+
+trace <- my_mcmcMH(target = logPosterior_trunc , # target distribution
+                   init.theta = .3, # intial parameter guess
+                   proposal.sd = 0.5, # standard deviation of
+                   # Gaussian proposal: 0.1
+                   n.iterations = 1000) # number of iterations
+
+
+trace <- mcmc.epi$trace
+mcmc.trace <- mcmc(trace)
+summary(mcmc.trace)
+
+acceptanceRate <- 1 - rejectionRate(mcmc.trace)
+effectiveSize(mcmc.trace)
+plot(mcmc.trace)
+
+mcmc.trace.burned <- burnAndThin(mcmc.trace, burn = 100, thin = 5)
+plot(mcmc.trace.burned)
+
+autocorr.plot(mcmc.trace.burned)
+
+plotESSBurn(mcmc.trace)
+
+#mcmc_r<-Metro_Hastings(li_func= logPosterior_trunc,pars=c(.3),
+ #                      par_names=c('beta'), iterations = 5000)
+

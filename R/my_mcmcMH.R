@@ -33,7 +33,7 @@ my_mcmcMH <- function(target, init.theta, proposal.sd, n.iterations) {
     # evaluate the function target at the proposed theta and
     # assign to a variable called target.theta.proposed
     target.theta.proposed <- target(theta.proposed)
-    print(paste("target.theta.proposed: ", target.theta.proposed))
+#    print(paste("target.theta.proposed: ", target.theta.proposed))
     
     # compute Metropolis-Hastings ratio (acceptance probability). Since
     # the multivariate Gaussian is symmetric, we don't need to consider
@@ -49,7 +49,7 @@ my_mcmcMH <- function(target, init.theta, proposal.sd, n.iterations) {
     # "exp" because we calculated the logarithm of the
     # Metropolis-Hastings ratio before)
     
-    print(exp(log.acceptance))
+#    print(exp(log.acceptance))
     print(paste("log.accep: : ",log.acceptance))
     
     if (r < exp(log.acceptance)) {
