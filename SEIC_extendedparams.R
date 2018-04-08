@@ -43,7 +43,7 @@ SIR$simulate <- function (theta, init.state, times)
     
     N <- S + E + I + C
     
-    if (time < 17) {
+    if (time < 18) {
       dS <- -1*beta * S * I/N
       S1 = max(S,0) #prevent from going below zero
       dE <- 1*beta * (S1 * I)/N - (E/L)
@@ -64,7 +64,7 @@ SIR$simulate <- function (theta, init.state, times)
       dI <- (E/L) - (I/D1)
       dC <- I/D1
       
-      dExp <- beta * S1 * I/N
+      dExp <- w*beta * S1 * I/N
       dInc <- (E/L)
       dCon <- (I/D1)
     }
@@ -90,7 +90,7 @@ SIR$simulate <- function (theta, init.state, times)
 
 
 
-theta<- c(beta = .99,  L = 8.19 , D0 = 9.26, D1 = 4.04, w = .091) #8.07 #3.77
+theta<- c(beta = .99,  L = 8.19 , D0 = 9.26, D1 = 4.05, w = .09) #8.07 #3.77
 init.state <- c(S = 10000, E = 0, I = 1, C = 0) #S = 51413925
 times <- 1:57
 traj <- SIR$simulate(theta, init.state, times)
@@ -101,7 +101,8 @@ ggplot(data = traj, aes(x = time)) +
   #  geom_line(aes(y = Inc), color = "purple" ) +
   #  geom_line(aes(y = Con), color = "orange") +
   geom_point(data = epi, aes(y = conf, x = times), color = "red") +
-  labs(y = "") + xlim(10,57)
+  labs(y = "") + xlim(10,57) +
+  ggtitle("Confirmed Cases, Start May 20th")
 
 #plot Inc  data against model
 ggplot(data = traj, aes(x = time)) + 
@@ -109,7 +110,8 @@ ggplot(data = traj, aes(x = time)) +
   #  geom_line(aes(y = Inc), color = "purple" ) +
   #  geom_line(aes(y = Con), color = "orange") +
   geom_point(data = epi, aes(y = onset, x = times), color = "red") +
-  labs(y = "") + xlim(1,67)
+  labs(y = "") + xlim(1,67) + 
+  ggtitle("Incidence, Start May 11th")
 
 
 #plot exposed data against model 
@@ -117,7 +119,8 @@ ggplot(data = traj, aes(x = time)) +
   geom_line(aes(y = Exp), color = "green") +
   #  geom_line(aes(y = Inc), color = "purple" ) +
   #  geom_line(aes(y = Con), color = "orange") +
-  geom_point(data = epi, aes(y = onset, x = times), color = "red") +
-  labs(y = "") + xlim(3,57)
+  geom_point(data = epi, aes(y = exp, x = times), color = "red") +
+  labs(y = "") + xlim(4,57) +
+  ggtitle("Exposed Cases, Start May 13th")
 
 
