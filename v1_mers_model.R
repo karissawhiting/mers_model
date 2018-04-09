@@ -259,4 +259,18 @@ mcmc.epi <- my_mcmcMH(target = logPosterior_trunc,
 # Diagnostics  ----------------------
 
 trace <- mcmc.epi$trace
+mcmc.trace <- mcmc(trace)
+summary(mcmc.trace)
+
+acceptanceRate <- 1 - rejectionRate(mcmc.trace)
+effectiveSize(mcmc.trace)
+plot(mcmc.trace)
+
+mcmc.trace.burned <- burnAndThin(mcmc.trace, burn = 100, thin = 5)
+plot(mcmc.trace.burned)
+
+autocorr.plot(mcmc.trace.burned)
+
+plotESSBurn(mcmc.trace)
+
 
