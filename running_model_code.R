@@ -200,7 +200,12 @@ dpois(x = 0, #dispersion param
 dTrajObs_I(SIR, theta, init.state, epi, log = TRUE)
 
 
+############
+#neg binomial
 
-
+theta<- c(beta = .99,  L = 8.19 , D0 = 9.26, D1 = 4.05, w = .09) #8.07 #3.77
+init.state <- c(S = 10000, E = 0, I = 1, C = 0) #S = 51413925
+times <- 1:57
+traj <- SIR$simulate(theta, init.state, times)
 
 

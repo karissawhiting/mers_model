@@ -9,9 +9,10 @@ library(deSolve)
 
 #Data Clean -----------------------------
 
-load("./data-raw/mers_times.RData")
 
-mers_times2<- melt(mers_times[,2:4])
+load("./data-raw/mers_times_ram.RData")
+
+mers_times2<- melt(mers_times)
 
 epi <- dcast(mers_times2,  value ~ variable, length) %>%
   rename("times" = value, "exp" = exp_date, "onset" = onset_date, "conf" = conf_date) %>%
@@ -20,12 +21,32 @@ epi <- dcast(mers_times2,  value ~ variable, length) %>%
 times = data.frame(times = 1:56)
 epi = full_join(times, epi, by = "times")
 
+epi <- epi[!is.na(epi$times), ]
+
 epi[is.na(epi)] <- 0
-epi<- epi[1:56,]
+#epi<- epi[1:56,]
 
 rm(mers_times, mers_times2, times)
 
-save(epi, file = "./data/epi.RData")
+# plot
+epi_melt <- melt(epi, id = "times") %>%
+  filter(times != -10)
+
+jpeg("./plots/epi_data_ram", width = 8, height = 5, units = "in", res = 300)
+ggplot(epi_melt, aes(x = times, y = value, color = variable)) + geom_line(size = 1.5) + 
+  geom_point(size = 3) +
+  ggtitle("Incidence Incomplete Data") + 
+  scale_color_manual(name=" ", breaks=c("onset", "conf", "exp"),
+                     labels=c("Exposed", "Infected", "Confirmed"),
+                     values=c("#C64743",
+                              "#7355A3",
+                              "#2589A4")) +
+  xlab("Days Since Outbreak Start (May 11th)") +
+  ylab("Cases")+
+  theme_minimal(base_size = 21) +
+  theme(legend.justification = c(1.1, 1.1), legend.position = c(1, 1))
+
+dev.off()
 
 # Coding Model Expanded  -----------------------------
 SIR$name <- c("SEIC model with w, D0, D1 param")
@@ -104,7 +125,7 @@ SIR$simulate <- function (theta, init.state, times)
 #times <- 1:57
 #traj <- SIR$simulate(theta, init.state, times)
 
-SIR$theta.names <- c("beta", "L", "D0", "D1", "w", "n")
+SIR$theta.names <- c("beta", "L", "D0", "D1", "w", "n", "r_exp", "r_on")
 
 # Priors -----------------------------
 SIR$dprior <- function(theta, log) {
@@ -127,14 +148,25 @@ SIR$dprior <- function(theta, log) {
   ## gamma prior on n
   log.prior.n <-dgamma(theta[["n"]], shape = 3.125, rate = .3125,  log = TRUE)
   
+  ## gamma prior on n
+  log.prior.r_exp <- dunif(theta[["r_exp"]], min = 0, 
+                             max = 1, log = TRUE)
+  
+
+  ## gamma prior on n
+  log.prior.r_on <- dunif(theta[["r_on"]], min = 0, 
+                            max = 1, log = TRUE)
+  
+  
   #sum
-  log.sum <- log.prior.beta + log.prior.L + log.prior.D0 + log.prior.D1 + log.prior.w + log.prior.n
+  log.sum <- log.prior.beta + log.prior.L + log.prior.D0 + log.prior.D1 + log.prior.w + log.prior.n +
+    log.prior.r_exp + log.prior.r_on
   
   return(log.sum)
   #  return(ifelse(log, log.sum, exp(log.sum)))
 }
 
-#SIR$dprior(c(beta = .99,  L = 8.19 , D0 = 9.26, D1 = 4.05, w = .09, n = 10))
+SIR$dprior(c(beta = .99,  L = 8.19 , D0 = 9.26, D1 = 4.05, w = .09, n = 10, r_exp = .5, r_on = .9))
 # Log Likelihood of data  -----------------------------
 
 #* Exposed ----------------------
@@ -149,10 +181,10 @@ dTrajObs_E <- function (fitmodel, theta, init.state, data, log = TRUE) {
     model.point <- unlist(traj[i, ])
     if(model.point[["Exp"]] > 0) {
       dens <- sum(dens,  
-        (dnbinom(x = data.point[["exp"]],
-              mu = (model.point[["Exp"]]),
-              size = ((model.point[["Exp"]])/(theta[["n"]]-1)),
-              log = log)), na.rm = TRUE)
+                  (dnbinom(x = data.point[["exp"]],
+                           mu = (theta[["r_exp"]]*model.point[["Exp"]]),
+                           size = ((theta[["r_exp"]]*model.point[["Exp"]])/(theta[["n"]]-1)),
+                           log = log)), na.rm = TRUE)
     }
   }
   return(dens)
@@ -169,11 +201,11 @@ dTrajObs_I <- function (fitmodel, theta, init.state, data, log = TRUE) {
     data.point <- unlist(data[i, ])
     model.point <- unlist(traj[i, ])
     if(model.point[["Inc"]] > 0) {
-    dens <- sum(dens,
-      (dnbinom(x = data.point[["onset"]],
-              mu = model.point[["Inc"]],
-              size = ((model.point[["Inc"]])/(theta[["n"]]-1)),
-              log = log)), na.rm = TRUE)
+      dens <- sum(dens,
+                  (dnbinom(x = data.point[["onset"]],
+                           mu = model.point[["Inc"]]*theta[["r_on"]],
+                           size = ((model.point[["Inc"]]*theta[["r_on"]])/(theta[["n"]]-1)),
+                           log = log)), na.rm = TRUE)
     }
   }
   return(dens)
@@ -195,11 +227,11 @@ dTrajObs_C <- function (fitmodel, theta, init.state, data, log = TRUE) {
     data.point <- unlist(data[i, ])
     model.point <- unlist(traj[i, ])
     if(model.point[["Con"]] > 0) {
-    dens <- sum(dens,  
-      (dnbinom(x = data.point[["conf"]], #dispersion param
-              mu = (model.point[["Con"]]),
-              size = ((model.point[["Con"]])/(theta[["n"]]-1)),
-              log = log)), na.rm = TRUE)
+      dens <- sum(dens,  
+                  (dnbinom(x = data.point[["conf"]], #dispersion param
+                           mu = (model.point[["Con"]]),
+                           size = ((model.point[["Con"]])/(theta[["n"]]-1)),
+                           log = log)), na.rm = TRUE)
     }
   }
   return(dens)
@@ -245,28 +277,28 @@ adapt.size.start <- 1000
 adapt.size.cooling <- 0.999
 adapt.shape.start <- 3000
 adapt.shape.stop <- 17000
-n.iterations <- 50000
-proposal.sd <- c(beta = .03, L =.5, D0 = .5, D1 = .2, w = .03, n = .05)
+n.iterations <- 20000
+proposal.sd <- c(beta = .03, L =.5, D0 = .5, D1 = .2, w = .03, n = .05, r_exp = .1, r_on = .1)
 
 
 mcmc.epi <- mcmcMH(target = logPosterior_trunc,
-                    init.theta = c(beta = .6, L =6, D0 = 11, D1 = 3, w = .06, n = 6),
-                    proposal.sd = proposal.sd,
-                    n.iterations = n.iterations,
-                    adapt.size.start = adapt.size.start,
-                    adapt.size.cooling = adapt.size.cooling,
+                   init.theta = c(beta = .6, L =6, D0 = 11, D1 = 3, w = .06, n = 6,  r_exp = .554, r_on =.919),
+                   proposal.sd = proposal.sd,
+                   n.iterations = n.iterations,
+                   adapt.size.start = adapt.size.start,
+                   adapt.size.cooling = adapt.size.cooling,
                    adapt.shape.start = adapt.shape.start, 
                    adapt.shape.stop = adapt.shape.stop,
-                   limits = list(lower = c(beta = 0, L = 0, D0 = 0, D1 = 0, w = 0, n = 1.000000001)))
+                   limits = list(lower = c(beta = 0, L = 0, D0 = 0, D1 = 0, w = 0, n = 1.000000001, r_exp = 0, r_on = 0)))
 
-save(mcmc.epi,  file= "./data/mcmc.epi.RData")
+save(mcmc.epi,  file= "./data/mcmc.epi.reporting.RData")
 #mcmc.epi$covmat.empirical
 
 
 trace <- mcmc.epi$trace
 mcmc.trace <- mcmc(trace)
 summary(mcmc.trace)
-save(mcmc.trace,  file= "./data/trace.RData")
+#save(mcmc.trace,  file= "./data/trace.RData")
 
 
 
@@ -277,7 +309,7 @@ acceptanceRate <- 1 - rejectionRate(mcmc.trace)
 #plot(mcmc.trace, denseplot = TRUE)
 
 mcmc.trace.burned <- burnAndThin(mcmc.trace, burn = 5000, thin = 3)
-acceptanceRate <- 1 - rejectionRate(mcmc.trace.burned)
+#acceptanceRate <- 1 - rejectionRate(mcmc.trace.burned)
 plot(mcmc.trace.burned)
 
 autocorr.plot(mcmc.trace.burned)

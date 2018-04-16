@@ -17,7 +17,7 @@ mers <- mers_raw %>%
          delay_on_conf =  conf_date - onset_date)
 
 # check for na's
-map(mers, ~sum(is.na(.x)))
+purrr::map(mers, ~sum(is.na(.x)))
 
 
 # Onset Dates ----------------------
