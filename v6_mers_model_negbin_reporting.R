@@ -281,7 +281,7 @@ n.iterations <- 20000
 proposal.sd <- c(beta = .03, L =.5, D0 = .5, D1 = .2, w = .03, n = .05, r_exp = .1, r_on = .1)
 
 
-mcmc.epi <- mcmcMH(target = logPosterior_trunc,
+mcmc.epi4 <- mcmcMH(target = logPosterior_trunc,
                    init.theta = c(beta = .6, L =6, D0 = 11, D1 = 3, w = .06, n = 6,  r_exp = .554, r_on =.919),
                    proposal.sd = proposal.sd,
                    n.iterations = n.iterations,
@@ -291,16 +291,19 @@ mcmc.epi <- mcmcMH(target = logPosterior_trunc,
                    adapt.shape.stop = adapt.shape.stop,
                    limits = list(lower = c(beta = 0, L = 0, D0 = 0, D1 = 0, w = 0, n = 1.000000001, r_exp = 0, r_on = 0)))
 
-save(mcmc.epi,  file= "./data/mcmc.epi.reporting.RData")
+#save(mcmc.epi2,  file= "./data/mcmc.epi.reporting.RData")
 #mcmc.epi$covmat.empirical
 
 
-trace <- mcmc.epi$trace
+trace <- mcmc.epi4$trace
 mcmc.trace <- mcmc(trace)
 summary(mcmc.trace)
 #save(mcmc.trace,  file= "./data/trace.RData")
 
-
+cor(trace$beta, trace$L)
+cor(trace$beta, trace$D0)
+cor(trace$beta, trace$D1)
+cor(trace$L, trace$D1)
 
 mcmc.epi$covmat.empirical
 

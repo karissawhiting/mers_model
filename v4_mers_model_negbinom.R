@@ -25,7 +25,7 @@ epi<- epi[1:56,]
 
 rm(mers_times, mers_times2, times)
 
-save(epi, file = "./data/epi.RData")
+#save(epi, file = "./data/epi.RData")
 
 # Coding Model Expanded  -----------------------------
 SIR$name <- c("SEIC model with w, D0, D1 param")
