@@ -1,4 +1,4 @@
-#Second attempt
+# Particle filter experiment (not used in report)
 
 library(tidyverse)
 library('fitR')
