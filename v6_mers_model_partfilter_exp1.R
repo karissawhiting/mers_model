@@ -1,3 +1,5 @@
+# Particle filter experiment (not used in final models)
+
 library('fitR')
 library("tidyverse")
 
